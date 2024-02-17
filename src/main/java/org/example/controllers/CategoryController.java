@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import org.example.dto.CategoryCreateDTO;
 import org.example.entities.CategoryEntity;
 import org.example.repositories.CategoryRepository;
+import org.example.storage.FileSaveFormat;
+import org.example.storage.StorageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,7 @@ import java.util.List;
 @RequestMapping("api/categories")
 public class CategoryController {
     private final CategoryRepository categoryRepository;
+    private final StorageService storageService;
 
     @GetMapping
     public ResponseEntity<List<CategoryEntity>> index() {
@@ -27,13 +30,18 @@ public class CategoryController {
 
     @PostMapping(value = "create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CategoryEntity> create(@ModelAttribute CategoryCreateDTO dto) {
-        CategoryEntity category = new CategoryEntity();
-        category.setName(dto.getName());
-        category.setImage(dto.getImage());
-        category.setDescription(dto.getDescription());
-        category.setDateCreated(new Date());
+        try {
+            CategoryEntity category = new CategoryEntity();
+            category.setName(dto.getName());
+            String image = storageService.SaveImage(dto.getImage(), FileSaveFormat.WEBP);
+            category.setImage(image);
+            category.setDescription(dto.getDescription());
+            category.setDateCreated(new Date());
 
-        categoryRepository.save(category);
-        return new ResponseEntity<>(category, HttpStatus.OK);
+            categoryRepository.save(category);
+            return new ResponseEntity<>(category, HttpStatus.OK);
+        } catch(Exception ex){
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
     }
 }
