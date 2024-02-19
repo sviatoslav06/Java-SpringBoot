@@ -24,5 +24,5 @@ public class CategoryEntity {
 
     @Column(name = "date_created")
     @Temporal(TemporalType.TIMESTAMP)
-    private Date dateCreated;
+    private Date creationTime;
 }
