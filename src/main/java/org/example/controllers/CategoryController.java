@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Date;
 import java.util.List;
@@ -49,44 +51,63 @@ public class CategoryController {
         }
     }
 
-    @PostMapping(value = "update/{category_id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<CategoryEntity> update(int category_id, @ModelAttribute CategoryUpdateDTO dto){
+    @PutMapping(value="", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CategoryItemDTO> edit(@ModelAttribute CategoryUpdateDTO model) {
+        var old = categoryRepository.findById(model.getId()).orElse(null);
+        if (old == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        var entity = categoryMapper.categoryEditDto(model);
+        if(model.getFile()==null) {
+            entity.setImage(old.getImage());
+        }
+        else {
+            try {
+                storageService.deleteImage(old.getImage());
+                String fileName = storageService.SaveImage(model.getFile(), FileSaveFormat.WEBP);
+                entity.setImage(fileName);
+            }
+            catch (Exception exception) {
+                return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            }
+        }
+        entity.setCreationTime(old.getCreationTime());
+        categoryRepository.save(entity);
+        var result = categoryMapper.categoryItemDTO(entity);
+        return new ResponseEntity<>(result, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{categoryId}")
+    public ResponseEntity<Void> delete(@PathVariable int categoryId) {
+        var entity = categoryRepository.findById(categoryId).orElse(null);
+        if (entity == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
         try {
-            Optional<CategoryEntity> optionalCategory = categoryRepository.findById(category_id);
-            if (optionalCategory.isEmpty()) {
-                return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
-            }
-
-            CategoryEntity category = optionalCategory.get();
-            category.setName(dto.getName());
-            if (dto.getImage() != null) {
-                String image = storageService.SaveImage(dto.getImage(), FileSaveFormat.WEBP);
-                category.setImage(image);
-            }
-            category.setDescription(dto.getDescription());
-            category.setCreationTime(new Date());
-
-            categoryRepository.save(category);
-            return new ResponseEntity<>(category, HttpStatus.OK);
-        } catch(Exception ex){
-            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+            storageService.deleteImage(entity.getImage());
+            categoryRepository.deleteById(categoryId);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        }
+        catch (Exception exception) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
     }
 
-    @DeleteMapping("delete/{category_id}")
-    public ResponseEntity<CategoryEntity> delete(int category_id){
-        try {
-            Optional<CategoryEntity> optionalCategory = categoryRepository.findById(category_id);
-            if (optionalCategory.isEmpty()) {
-                return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
-            }
-
-            CategoryEntity category = optionalCategory.get();
-
-            categoryRepository.delete(category);
-            return new ResponseEntity<>(category, HttpStatus.OK);
-        } catch(Exception ex){
-            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+    @GetMapping("/{categoryId}")
+    public ResponseEntity<CategoryItemDTO> getById(@PathVariable int categoryId) {
+        var entity = categoryRepository.findById(categoryId).orElse(null);
+        if (entity == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+        var result =  categoryMapper.categoryItemDTO(entity);
+        return new ResponseEntity<>(result, HttpStatus.OK);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<CategoryItemDTO>> searchByName(@RequestParam(required = false) String name,
+                                                              Pageable pageable) {
+        Page<CategoryEntity> categories = categoryRepository.findByNameContainingIgnoreCase(name, pageable);
+        Page<CategoryItemDTO> result = categories.map(categoryMapper::categoryItemDTO);
+        return new ResponseEntity<>(result, HttpStatus.OK);
     }
 }
