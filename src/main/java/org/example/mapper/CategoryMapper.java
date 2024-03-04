@@ -12,6 +12,7 @@ import java.util.List;
 public interface CategoryMapper {
     @Mapping(source = "creationTime", target = "dateCreated", dateFormat = "dd.MM.yyyy HH:mm:ss")
     CategoryItemDTO categoryItemDTO(CategoryEntity category);
+
     List<CategoryItemDTO> categoryListItemDTO(List<CategoryEntity> list);
 
     @Mapping(target = "image", ignore = true)

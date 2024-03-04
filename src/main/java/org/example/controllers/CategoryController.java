@@ -18,7 +18,6 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @AllArgsConstructor
@@ -103,10 +102,39 @@ public class CategoryController {
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
+//    @GetMapping("/search")
+//    public ResponseEntity<Page<CategoryItemDTO>> searchByName(@RequestParam(required = false) String name,
+//                                                              Pageable pageable) {
+//        Page<CategoryEntity> categories = categoryRepository.findByNameContainingIgnoreCase(name, pageable);
+//        Page<CategoryItemDTO> result = categories.map(categoryMapper::categoryItemDTO);
+//        return new ResponseEntity<>(result, HttpStatus.OK);
+//    }
     @GetMapping("/search")
-    public ResponseEntity<Page<CategoryItemDTO>> searchByName(@RequestParam(required = false) String name,
-                                                              Pageable pageable) {
-        Page<CategoryEntity> categories = categoryRepository.findByNameContainingIgnoreCase(name, pageable);
+    public ResponseEntity<Page<CategoryItemDTO>> searchByNameOrDescription(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String description,
+            Pageable pageable) {
+
+        if ((name == null || name.isBlank()) && (description == null || description.isBlank())) {
+            // If both name and description parameters are null or empty, return all categories
+            Page<CategoryEntity> categories = categoryRepository.findAll(pageable);
+            Page<CategoryItemDTO> result = categories.map(categoryMapper::categoryItemDTO);
+            return new ResponseEntity<>(result, HttpStatus.OK);
+        }
+
+        // Search by name and/or description
+        Page<CategoryEntity> categories;
+        if (name != null && !name.isBlank() && description != null && !description.isBlank()) {
+            // Search by both name and description
+            categories = categoryRepository.findByNameContainingIgnoreCaseAndDescriptionContainingIgnoreCase(name, description, pageable);
+        } else if (name != null && !name.isBlank()) {
+            // Search by name only
+            categories = categoryRepository.findByNameContainingIgnoreCase(name, pageable);
+        } else {
+            // Search by description only
+            categories = categoryRepository.findByDescriptionContainingIgnoreCase(description, pageable);
+        }
+
         Page<CategoryItemDTO> result = categories.map(categoryMapper::categoryItemDTO);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
